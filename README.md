@@ -180,7 +180,6 @@ This architecture produced the winning benchmark score of **0.9654**.
 │   ├── test.csv                           # 1,500 evaluation trip records
 │   └── sample_submission.csv              # Submission template
 ├── README.md                              # Project documentation
-└── submission.csv                         # Final generated predictions (R² = 0.9654)
 ```
 
 ---
