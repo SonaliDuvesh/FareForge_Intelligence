@@ -91,12 +91,12 @@ The operational dataset is derived from New York City TLC Yellow Cab trip record
 | `DOLocationID` | Integer | Dropoff TLC Taxi Zone; transformed via smoothed empirical Bayes out-of-fold target encoding. |
 | `RatecodeID` | Float / Int | Tariff tier (1=Standard, 2=JFK, 3=Newark, 4=Nassau/Westchester, 5=Negotiated); one-hot encoded and mapped to baseline flat amounts. |
 | `payment_type` | Categorical | Payment method (Credit Card, Cash, etc.); key driver for tipping behavior. |
-| `extra` | Float | Miscellaneous surcharges ($0.50, $1.00, $2.50, $5.00); interacted with distance and duration. |
+| `extra` | Float | Miscellaneous surcharges (USD 0.50, 1.00, 2.50, 5.00); interacted with distance and duration. |
 | `tip_amount` | Float | Driver gratuity (primarily recorded for card transactions). |
 | `tolls_amount` | Float | Bridge and tunnel tolls incurred during the journey. |
 | `improvement_surcharge`| Float | Mandatory MTA infrastructure fee. |
-| `congestion_surcharge` | Float | High-density Manhattan zone fee ($2.50 standard). |
-| `Airport_fee` | Float | Airport pickup fee ($1.25 standard). |
+| `congestion_surcharge` | Float | High-density Manhattan zone fee (USD 2.50 standard). |
+| `Airport_fee` | Float | Airport pickup fee (USD 1.25 standard). |
 | `passenger_count` | Float | Passenger capacity; imputed via mode. |
 | `store_and_fwd_flag` | Categorical | Offline meter log indicator (Y/N). |
 | `VendorID` | Integer | Provider code associated with the taxicab meter hardware. |
@@ -113,10 +113,10 @@ The operational dataset is derived from New York City TLC Yellow Cab trip record
 
 ### Outlier Auditing & Sensor Inversion
 - **Negative Duration Correction**: Approximately 38% of records exhibited dropoff timestamps occurring before pickup timestamps due to logging synchronization offsets. The true duration was computed using absolute elapsed time:
-  $$\text{duration} = \text{clip}\left(\frac{|t_{\text{dropoff}} - t_{\text{pickup}}|}{60}, 0.1, 180\right) \text{ [minutes]}$$
+  $$\text{duration} = \text{clip}\left(\frac{|t_{\text{dropoff}} - t_{\text{pickup}}|}{60}, 0.1, 180\right) \quad (\text{minutes})$$
   A binary indicator (`neg`) was maintained to retain signal regarding recording system state.
 - **Kinematic Plausibility Bounding**: Average trip speed was computed as $\text{speed} = \frac{\text{distance}}{\text{duration}/60 + \epsilon}$ and clipped at 100 mph to suppress division-by-zero artifacts.
-- **Valid Fare Boundary Retention**: Negative fares were retained as legitimate disputed fares and refund transactions present in both training and test environments. Extremely aberrant records ($> \$500$ or negative distances) were filtered.
+- **Valid Fare Boundary Retention**: Negative fares were retained as legitimate disputed fares and refund transactions present in both training and test environments. Extremely aberrant records (> USD 500 or negative distances) were filtered.
 
 ---
 
@@ -124,9 +124,9 @@ The operational dataset is derived from New York City TLC Yellow Cab trip record
 
 ### 1. Non-Linear Distance Transforms
 Taxi meters exhibit stepped threshold charges and non-linear cost curves for long journeys:
-- Quadratic: $d^2 = (\text{trip\_distance})^2$
-- Square-root: $\sqrt{d} = \sqrt{\text{trip\_distance}}$
-- Logarithmic: $\log(1+d) = \ln(1 + \text{trip\_distance})$
+- **Quadratic**: `d² = (trip_distance)²`
+- **Square-root**: `√d = √(trip_distance)`
+- **Logarithmic**: `log(1+d) = ln(1 + trip_distance)`
 
 ### 2. Surcharge & Kinematic Cross-Interactions
 - `extra × distance`: Surcharges scale with distance during peak hours ($r \approx 0.556$ correlation with fare residuals).
@@ -142,10 +142,14 @@ where $m = 10$ acts as a Bayesian prior to prevent overfitting in rarely visited
 ## 7. Modeling Methodology & Ensemble Architecture
 
 ### Step 1: Residual Target Decomposition
-Directly predicting gross fare forces tree models to approximate simple additive sums. The fare was decoupled into:
-$$\text{known} = \text{extra} + \text{tip\_amount} + \text{tolls\_amount} + \text{improvement\_surcharge} + \text{congestion\_surcharge} + \text{Airport\_fee} + m_{\text{dist}}$$
-$$y_{\text{residual}} = y_{\text{total}} - \text{known}$$
-All models were trained to predict $y_{\text{residual}}$, drastically reducing target variance.
+Directly predicting gross fare forces tree models to approximate simple additive sums. The fare was decoupled into deterministic known fees and residual meter charges:
+
+```text
+known = extra + tip_amount + tolls_amount + improvement_surcharge + congestion_surcharge + Airport_fee + m_dist
+y_residual = total_amount - known
+```
+
+All models were trained to predict `y_residual`, drastically reducing target variance.
 
 ### Step 2: Level-0 Ridge Stacking
 A cross-validated Ridge regression model ($\alpha = 0.5$) with StandardScaler was trained on target-encoded spatial categories and base kinematic features, outputting out-of-fold meta-features ($L_0$).
