@@ -175,7 +175,7 @@ This architecture produced the winning benchmark score of **0.9654**.
 
 ```
 ├── taxi_fare_prediction.ipynb             # Master executable notebook (EDA, training, tuning, ensemble)
-├── mlp-term-1-2026-kaggle-assignment-1/   # Data directory
+├── Dataset/                               # Data directory
 │   ├── train.csv                          # 10,000 labeled training trip records
 │   ├── test.csv                           # 1,500 evaluation trip records
 │   └── sample_submission.csv              # Submission template
